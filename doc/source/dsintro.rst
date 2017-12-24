@@ -102,6 +102,8 @@ provided. The value will be repeated to match the length of **index**
 
    pd.Series(5., index=['a', 'b', 'c', 'd', 'e'])
 
+.. _dsintro.series.ndarray:
+
 Series is ndarray-like
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -117,6 +119,8 @@ However, things like slicing also slice the index.
     np.exp(s)
 
 We will address array-based indexing in a separate :ref:`section <indexing>`.
+
+.. _dsintro.series.dict:
 
 Series is dict-like
 ~~~~~~~~~~~~~~~~~~~
@@ -148,6 +152,8 @@ Using the ``get`` method, a missing label will return None or specified default:
    s.get('f', np.nan)
 
 See also the :ref:`section on attribute access<indexing.attribute_access>`.
+
+.. _dsintro.series.alignment:
 
 Vectorized operations and label alignment with Series
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -189,10 +195,10 @@ tools for working with labeled data.
     of course have the option of dropping labels with missing data via the
     **dropna** function.
 
+.. _dsintro.name_attribute:
+
 Name attribute
 ~~~~~~~~~~~~~~
-
-.. _dsintro.name_attribute:
 
 Series can also have a ``name`` attribute:
 
