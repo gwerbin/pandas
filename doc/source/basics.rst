@@ -129,7 +129,7 @@ Flexible binary operations
 --------------------------
 
 Pandas data structures support Python's full range of arithmetic operators,
-which are described in the `official Python documentation <https://docs.python.org/3/reference/datamodel.html?highlight=__add__#emulating-numeric-types>`_. These operators act _elementwise_,
+which are described in the `official Python documentation <https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types>`_. These operators act *elementwise*,
 as described in :ref:`the introduction to data structures<_basics.series.alignment>` section.
 
 Binary operations in Pandas are "flexible", in that they can be applied between
@@ -171,7 +171,7 @@ Broadcasting
 ~~~~~~~~~~~~
 
 Series broadcasting
-```````````````````
+^^^^^^^^^^^^^^^^^^^
 
 When the LHS is a :class:`Series`, the RHS must be a scalar, a non-string iterable
 of the same length, another Series, or a DataFrame.
@@ -217,7 +217,7 @@ When a DataFrame is on the RHS and a Series is on the LHS, their order is swappe
 and the DataFrame broadcasting logic is applied.
 
 DataFrame broadcasting
-``````````````````````
+^^^^^^^^^^^^^^^^^^^^^^
 
 When the RHS is a scalar, behavior is analogous to the Series case. When the RHS
 is a Series (or coercible to a Series), the default behavior is to broadcast each
