@@ -128,54 +128,149 @@ These are both enabled to be used by default, you can control this by setting th
 Flexible binary operations
 --------------------------
 
-With binary operations between pandas data structures, there are two key points
-of interest:
+Pandas data structures support Python's full range of arithmetic operators,
+which are described in the `official Python documentation <https://docs.python.org/3/reference/datamodel.html?highlight=__add__#emulating-numeric-types>`_. These operators act _elementwise_,
+as described in :ref:`the introduction to data structures<_basics.series.alignment>` section.
 
-  * Broadcasting behavior between higher- (e.g. DataFrame) and
-    lower-dimensional (e.g. Series) objects.
-  * Missing data in computations
+Binary operations in Pandas are "flexible", in that they can be applied between
+objects that are not of the same class. For instance, it is possible to add
+a :class:`Series` to a :class:`DataFrame`. When a lower-dimensional class
+(like a Series) is combined with a higher-dimensional class (like a DataFrame),
+the lower-dimensional object is promoted to the higher-dimensional class. This
+is done by *broadcasting*: filling the extra dimension by repeating the contents
+of the lower-dimensional object.
 
-We will demonstrate how to manage these issues independently, though they can
-be handled simultaneously.
+Pandas binary operations must also handle the case when one or both operands
+contain missing data. By default, missing values in either operand propagate
+to the result.
 
-Matching / broadcasting behavior
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+When a binary operation is applied to with a Pandas object on the left-hand side (LHS),
+and an arbitrary object on the right-hand side (RHS), the following steps take place:
 
-DataFrame has the methods :meth:`~DataFrame.add`, :meth:`~DataFrame.sub`,
-:meth:`~DataFrame.mul`, :meth:`~DataFrame.div` and related functions
-:meth:`~DataFrame.radd`, :meth:`~DataFrame.rsub`, ...
-for carrying out binary operations. For broadcasting behavior,
-Series input is of primary interest. Using these functions, you can use to
-either match on the *index* or *columns* via the **axis** keyword:
+1. If the RHS object is not already a pandas object, it is converted to a :class:`Series`,
+   and its index is aligned with that of the LHS object.
+2. The RHS object is broadcast to match the shape of the LHS object, and the elements
+   from both objects are aligned on their indexes.
+3. The binary operation is applied to each pair of elements. If either element is missing,
+   the corresponding element in the result is missing.
+   
+This process also occurs when a pandas object is on the right-hand side, as long
+as the object on the LHS does not implement its own version of the binary
+operation being applied. Note that these steps are conceptual, and might not reflect
+specific implementation details.
+
+Binary operators are accessible as named methods, like ``add()``, in addition to
+the usual infix notation, like ``+``. Available operators are listed in
+the :ref:`API reference <_api>` under the heading "Binary operator functions".
+The named-method versions have optional arguments that make it possible to
+change some of the broadcasting and missingness-propagation behavior.
+
+.. _basics.binop.broadcasting:
+
+Broadcasting
+~~~~~~~~~~~~
+
+Series broadcasting
+```````````````````
+
+When the LHS is a :class:`Series`, the RHS must be a scalar, a non-string iterable
+of the same length, another Series, or a DataFrame.
+
+In the first case, the scalar is repeated for the length of the Series:
+
+.. ipython:: python
+    
+    x = pd.Series([0, 10], index=['a', 'b'])
+    
+    # broadcasting a scalar to a Series
+    x + 4
+    
+    # equivalent to the above
+    x + pd.Series([4, 4], index=x.index)
+   
+    # strings are scalars, too
+    '_' + pd.Series(['foo', 'bar']) + '_'
+
+In the case of a non-string iterable, the iterable is converted to a Series
+using the usual construtor:
+
+.. ipython:: python
+    
+    x = pd.Series([1,2,3,4,5])
+    y = range(len(x))
+    
+    # implicit conversion to Series
+    x + y
+    
+    # explicit version of the above
+    x + pd.Series(y, index=x.index)
+
+When the RHS is a Series, their elements are added together one at a time.
+Note that, for the `'O'` dtype, method dispatch occurs element-by-element:
 
 .. ipython:: python
 
-   df = pd.DataFrame({'one' : pd.Series(np.random.randn(3), index=['a', 'b', 'c']),
-                      'two' : pd.Series(np.random.randn(4), index=['a', 'b', 'c', 'd']),
-                      'three' : pd.Series(np.random.randn(3), index=['b', 'c', 'd'])})
+    x = pd.Series(['0', 0])
+    x + ['1', 1]
+     
+When a DataFrame is on the RHS and a Series is on the LHS, their order is swapped,
+and the DataFrame broadcasting logic is applied.
+
+DataFrame broadcasting
+``````````````````````
+
+When the RHS is a scalar, behavior is analogous to the Series case. When the RHS
+is a Series (or coercible to a Series), the default behavior is to broadcast each
+element of the RHS down the columns of the LHS:
+
+.. ipython:: python
+
+   df = pd.DataFrame({'one'  : pd.Series([11, 12, 13],     index=['a', 'b', 'c'     ]),
+                      'two'  : pd.Series([21, 22, 23, 14], index=['a', 'b', 'c', 'd']),
+                      'three': pd.Series([    32, 33, 34], index=[     'b', 'c', 'd'])})
    df
-   row = df.iloc[1]
-   column = df['two']
+   
+   # implicit index alignment and broadcasting
+   df * [10, 100, 1000]
+   
+   # intermediate equivalent
+   df * pd.Series([10, 100, 1000], index=df.columns)
+   
+   # explicit equivalent
+   df * pd.DataFrame({'one'  : pd.Series([  10,   10,   10,   10], index=df.index),
+                      'two'  : pd.Series([ 100,  100,  100,  100], index=df.index),
+                      'three': pd.Series([1000, 1000, 1000, 1000], index=df.index)})
 
-   df.sub(row, axis='columns')
-   df.sub(row, axis=1)
+To instead broadcast the RHS across rows, explicitly use the named method:
 
-   df.sub(column, axis='index')
-   df.sub(column, axis=0)
+.. ipython:: python
+
+   z = [0.1, 10, 100, 1000]
+
+   df.mul(z, axis='columns')
+   df.mul(z, axis=1)
+
+   df.mul(z, axis='index')
+   df.mul(z, axis=0)
 
 .. ipython:: python
    :suppress:
 
    df_orig = df
 
-Furthermore you can align a level of a multi-indexed DataFrame with a Series.
+When the LHS is multi-indexed, you can specify which index to align on:
 
 .. ipython:: python
 
-   dfmi = df.copy()
-   dfmi.index = pd.MultiIndex.from_tuples([(1,'a'),(1,'b'),(1,'c'),(2,'a')],
-                                          names=['first','second'])
-   dfmi.sub(column, axis=0, level='second')
+   df.index = pd.MultiIndex.from_tuples([(1, 'a'), (1, 'b'), (1, 'c'), (2, 'a')],
+                                         names=['first', 'second'])
+   z = pd.Series(z, index=['a', 'b', 'c', 'd'])
+   df.mul(z, axis=0, level='second')
+   
+.. ipython:: python
+   :suppress:
+
+   df = df_orig
 
 With Panel, describing the matching behavior is a bit more difficult, so
 the arithmetic methods instead (and perhaps confusingly?) give you the option
@@ -196,6 +291,35 @@ And similarly for ``axis="items"`` and ``axis="minor"``.
    I could be convinced to make the **axis** argument in the DataFrame methods
    match the broadcasting behavior of Panel. Though it would require a
    transition period so users can change their code...
+
+Missing data / operations with fill values
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In Series and DataFrame (though not yet in Panel), the arithmetic functions
+have the option of inputting a *fill_value*, namely a value to substitute when
+at most one of the values at a location are missing. For example, when adding
+two DataFrame objects, you may wish to treat NaN as 0 unless both DataFrames
+are missing that value, in which case the result will be NaN (you can later
+replace NaN with some other value using ``fillna`` if you wish).
+
+.. ipython:: python
+   :suppress:
+
+   df2 = df.copy()
+   df2['three']['a'] = 1.
+
+.. ipython:: python
+
+   df
+   df2
+   df + df2
+   df.add(df2, fill_value=0)
+
+.. _basics.compare:
+
+
+Special case: ``divmod``
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 Series and Index also support the :func:`divmod` builtin. This function takes
 the floor division and modulo operation at the same time returning a two-tuple
@@ -222,31 +346,6 @@ We can also do elementwise :func:`divmod`:
    div, rem = divmod(s, [2, 2, 3, 3, 4, 4, 5, 5, 6, 6])
    div
    rem
-
-Missing data / operations with fill values
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-In Series and DataFrame (though not yet in Panel), the arithmetic functions
-have the option of inputting a *fill_value*, namely a value to substitute when
-at most one of the values at a location are missing. For example, when adding
-two DataFrame objects, you may wish to treat NaN as 0 unless both DataFrames
-are missing that value, in which case the result will be NaN (you can later
-replace NaN with some other value using ``fillna`` if you wish).
-
-.. ipython:: python
-   :suppress:
-
-   df2 = df.copy()
-   df2['three']['a'] = 1.
-
-.. ipython:: python
-
-   df
-   df2
-   df + df2
-   df.add(df2, fill_value=0)
-
-.. _basics.compare:
 
 Flexible Comparisons
 ~~~~~~~~~~~~~~~~~~~~
@@ -275,6 +374,7 @@ way to summarize a boolean result.
 
 .. ipython:: python
 
+   df['two'] = -df['two']
    (df > 0).all()
    (df > 0).any()
 
