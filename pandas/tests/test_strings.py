@@ -5,6 +5,7 @@ import numpy as np
 from numpy import nan as NA
 from numpy.random import randint
 import pytest
+import regex
 
 from pandas import DataFrame, Index, MultiIndex, Series, concat, isna, notna
 import pandas.core.strings as strings
@@ -1013,6 +1014,12 @@ class TestStringMethods:
         exp = Series(["foobar", NA])
         tm.assert_series_equal(result, exp)
 
+        # GH 22496 - test with regex library
+        pat = regex.compile('\p{Lu}')
+        result = values.str.replace(pat, "+")
+        exp = Series(["+++BAD__+++BAD", NA])
+        tm.assert_series_equal(result, exp)
+        
         result = values.str.replace(pat, "", n=1)
         exp = Series(["foobarBAD", NA])
         tm.assert_series_equal(result, exp)
