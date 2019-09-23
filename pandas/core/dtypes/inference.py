@@ -7,6 +7,13 @@ from typing import Pattern
 
 import numpy as np
 
+try:
+    import regex
+except ImportError:
+    _regex_known_types = Pattern
+else:
+    _regex_known_types = (Pattern, type(regex.compile('a')))
+
 from pandas._libs import lib
 
 is_bool = lib.is_bool
@@ -211,7 +218,7 @@ def is_re(obj):
     >>> is_re("foo")
     False
     """
-    return isinstance(obj, Pattern)
+    return isinstance(obj, _regex_known_types)
 
 
 def is_re_compilable(obj):
