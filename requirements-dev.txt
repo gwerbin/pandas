@@ -60,3 +60,4 @@ xlsxwriter
 xlwt
 odfpy
 pyreadstat
+regex
